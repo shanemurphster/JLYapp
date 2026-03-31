@@ -14,6 +14,11 @@ export default function DailyCard({ entry, dateLabel }: DailyCardProps) {
   return (
     <article className="flex flex-col gap-7 w-full max-w-md mx-auto px-6
                         pt-[max(2.5rem,env(safe-area-inset-top)+1.5rem)] pb-6">
+      {/* Persistent greeting — always above the card */}
+      <p className="font-serif text-base text-grace-gold text-center tracking-wide">
+        Jesus loves you.
+      </p>
+
       {/* Date */}
       <header>
         <p className="text-xs font-sans font-semibold tracking-widest uppercase text-grace-muted">
