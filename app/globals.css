@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* -----------------------------------------------------------------------
+   iPhone-first base resets
+----------------------------------------------------------------------- */
+
+html {
+  /* Prevent iOS from inflating font sizes in landscape */
+  -webkit-text-size-adjust: 100%;
+  /* Use dynamic viewport height — avoids the iOS Safari "100vh includes chrome" bug */
+  height: -webkit-fill-available;
+}
+
+body {
+  background-color: #FAF7F2;
+  color: #3D3228;
+  /* Prevent elastic scroll bounce at the body level */
+  overscroll-behavior: none;
+  /* Match html fill-available for iOS */
+  min-height: -webkit-fill-available;
+}
+
+/* Remove tap highlight flash on interactive elements */
+a, button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Prevent iOS from underlining phone numbers/addresses it detects in text */
+* {
+  -webkit-touch-callout: none;
+}
+
+/* Re-enable text selection where it makes sense */
+p, h1, h2, h3 {
+  -webkit-user-select: text;
+  user-select: text;
+}
