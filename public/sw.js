@@ -15,8 +15,8 @@ const CACHE_NAME = "daily-grace-v1";
 
 const PRECACHE_URLS = [
   "/",
-  "/about",
-  "/settings",
+  "/install",
+  "/support",
 ];
 
 // ---------------------------------------------------------------------------

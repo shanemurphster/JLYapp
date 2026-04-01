@@ -89,6 +89,34 @@ export async function saveSubscriptionToServer(
   }
 }
 
+/**
+ * Send a test push to this device via /api/test-push.
+ * Returns "ok", "unauthorized", or "error".
+ */
+export async function sendTestPush(): Promise<"ok" | "unauthorized" | "error"> {
+  const secret = process.env.NEXT_PUBLIC_TEST_PUSH_SECRET;
+  if (!secret) return "unauthorized";
+
+  const reg = await navigator.serviceWorker.ready;
+  const subscription = await reg.pushManager.getSubscription();
+  if (!subscription) return "error";
+
+  try {
+    const res = await fetch("/api/test-push", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${secret}`,
+      },
+      body: JSON.stringify({ subscription }),
+    });
+    if (res.status === 401) return "unauthorized";
+    return res.ok ? "ok" : "error";
+  } catch {
+    return "error";
+  }
+}
+
 function urlBase64ToArrayBuffer(base64: string): ArrayBuffer {
   const padding = "=".repeat((4 - (base64.length % 4)) % 4);
   const normalized = (base64 + padding).replace(/-/g, "+").replace(/_/g, "/");

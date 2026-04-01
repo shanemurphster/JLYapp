@@ -8,6 +8,7 @@ import {
   requestPermission,
   subscribeToPush,
   saveSubscriptionToServer,
+  sendTestPush,
 } from "@/lib/notifications";
 
 type UIState =
@@ -19,8 +20,13 @@ type UIState =
   | "requesting"    // mid-request
   | "denied";       // user blocked notifications
 
+const TEST_SECRET_CONFIGURED =
+  typeof process.env.NEXT_PUBLIC_TEST_PUSH_SECRET === "string" &&
+  process.env.NEXT_PUBLIC_TEST_PUSH_SECRET.length > 0;
+
 export default function NotificationToggle() {
   const [state, setState] = useState<UIState>("loading");
+  const [testStatus, setTestStatus] = useState<"idle" | "sending" | "sent" | "failed">("idle");
 
   useEffect(() => {
     if (!isPushSupported()) {
@@ -38,15 +44,19 @@ export default function NotificationToggle() {
 
   async function handleEnable() {
     setState("requesting");
-
     const perm = await requestPermission();
     if (perm !== "granted") { setState(perm === "denied" ? "denied" : "prompt"); return; }
-
     const subscription = await subscribeToPush();
     if (!subscription) { setState("granted_only"); return; }
-
     const saved = await saveSubscriptionToServer(subscription);
     setState(saved ? "subscribed" : "granted_only");
+  }
+
+  async function handleTestPush() {
+    setTestStatus("sending");
+    const result = await sendTestPush();
+    setTestStatus(result === "ok" ? "sent" : "failed");
+    setTimeout(() => setTestStatus("idle"), 4000);
   }
 
   if (state === "loading") return null;
@@ -69,7 +79,7 @@ export default function NotificationToggle() {
         <div className="flex items-center justify-between">
           <div>
             <Label>Daily reminder</Label>
-            <Sub>Active — 8 AM each morning</Sub>
+            <Sub>Active — 9 AM each morning</Sub>
           </div>
           <div className="w-2.5 h-2.5 rounded-full bg-grace-sage" />
         </div>
@@ -77,6 +87,19 @@ export default function NotificationToggle() {
         <Body>
           You&apos;re all set. You&apos;ll receive one quiet reminder each morning.
         </Body>
+        {TEST_SECRET_CONFIGURED && (
+          <button
+            onClick={handleTestPush}
+            disabled={testStatus === "sending"}
+            className="w-full border border-grace-gold-light text-grace-muted font-sans text-xs
+                       py-2.5 rounded-xl active:opacity-75 disabled:opacity-50 transition-opacity"
+          >
+            {testStatus === "sending" && "Sending…"}
+            {testStatus === "sent" && "Notification sent — check your device"}
+            {testStatus === "failed" && "Send failed — check console"}
+            {testStatus === "idle" && "Send test notification"}
+          </button>
+        )}
       </Panel>
     );
   }
@@ -96,6 +119,19 @@ export default function NotificationToggle() {
           Your device is ready. Reminders will activate automatically — no
           further action needed.
         </Body>
+        {TEST_SECRET_CONFIGURED && (
+          <button
+            onClick={handleTestPush}
+            disabled={testStatus === "sending"}
+            className="w-full border border-grace-gold-light text-grace-muted font-sans text-xs
+                       py-2.5 rounded-xl active:opacity-75 disabled:opacity-50 transition-opacity"
+          >
+            {testStatus === "sending" && "Sending…"}
+            {testStatus === "sent" && "Notification sent — check your device"}
+            {testStatus === "failed" && "Send failed — check console"}
+            {testStatus === "idle" && "Send test notification"}
+          </button>
+        )}
       </Panel>
     );
   }
@@ -132,7 +168,7 @@ export default function NotificationToggle() {
   );
 }
 
-// Small layout helpers to avoid repetition
+// Layout helpers
 function Panel({ children }: { children: React.ReactNode }) {
   return (
     <div className="bg-grace-warm rounded-2xl px-5 py-4 flex flex-col gap-3">
