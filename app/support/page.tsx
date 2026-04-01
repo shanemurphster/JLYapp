@@ -1,3 +1,5 @@
+import { DONATION_URL } from "@/lib/config";
+
 export default function SupportPage() {
   return (
     <div className="w-full max-w-md mx-auto px-6 pt-12 pb-4 flex flex-col gap-8">
@@ -26,19 +28,22 @@ export default function SupportPage() {
       <hr className="border-grace-gold-light" />
 
       <section className="flex flex-col gap-4">
-        <p className="text-xs font-sans font-semibold tracking-widest uppercase text-grace-muted">
-          Support this project
-        </p>
+        <h2 className="font-serif text-xl text-grace-text">Support Daily Grace</h2>
         <p className="font-sans text-base leading-relaxed text-grace-text-soft">
-          Daily Grace is free and always will be. If it has been meaningful to
-          you and you&apos;d like to help keep it going, a small contribution
-          goes a long way.
+          Your support helps keep Daily Grace running and growing.
         </p>
-        <div className="bg-grace-warm rounded-2xl px-5 py-4 text-center">
-          <p className="font-sans text-sm text-grace-muted">
-            Donation link coming soon.
-          </p>
-        </div>
+        <a
+          href={DONATION_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-full bg-grace-gold text-white font-sans text-sm font-medium
+                     py-3 rounded-xl text-center active:opacity-75 transition-opacity"
+        >
+          Donate
+        </a>
+        <p className="font-sans text-xs text-grace-muted text-center">
+          Daily Grace is free and always will be.
+        </p>
       </section>
 
       <hr className="border-grace-gold-light" />
