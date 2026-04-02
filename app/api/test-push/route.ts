@@ -14,7 +14,7 @@
  * to your own device. Safe to leave deployed as long as the secret is set.
  *
  * Required env vars:
- *   TEST_PUSH_SECRET       — any strong random string
+ *   NEXT_PUBLIC_TEST_PUSH_SECRET — must match what the client sends
  *   NEXT_PUBLIC_VAPID_KEY
  *   NEXT_PRIVATE_VAPID_KEY
  *   VAPID_SUBJECT
@@ -24,9 +24,20 @@ import { NextRequest, NextResponse } from "next/server";
 import webpush from "web-push";
 
 export async function POST(req: NextRequest) {
-  // Auth
-  const secret = process.env.TEST_PUSH_SECRET;
-  if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) {
+  // Auth — reads the same var name the client uses so only one env var is needed
+  const secret = process.env.NEXT_PUBLIC_TEST_PUSH_SECRET;
+  const authHeader = req.headers.get("authorization");
+
+  if (!secret) {
+    console.error("[test-push] 401: NEXT_PUBLIC_TEST_PUSH_SECRET is not set on the server");
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!authHeader) {
+    console.error("[test-push] 401: no Authorization header received");
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (authHeader !== `Bearer ${secret}`) {
+    console.error("[test-push] 401: Authorization header present but does not match secret");
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
