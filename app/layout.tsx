@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
 import ServiceWorkerRegistrar from "@/components/ServiceWorkerRegistrar";
+import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
   title: "Daily Grace",
@@ -44,6 +45,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
         <BottomNav />
         <ServiceWorkerRegistrar />
+        <Analytics />
       </body>
     </html>
   );

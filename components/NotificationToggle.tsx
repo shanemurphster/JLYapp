@@ -37,6 +37,10 @@ export default function NotificationToggle() {
     if (perm === "denied") { setState("denied"); return; }
     if (perm === "granted") {
       setState(isSubscriptionSaved() ? "subscribed" : "granted_only");
+      // Silently refresh subscription in Redis on every open — handles rotated APNs tokens
+      subscribeToPush().then((sub) => {
+        if (sub) saveSubscriptionToServer(sub);
+      });
       return;
     }
     setState("prompt");

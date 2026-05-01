@@ -4,16 +4,16 @@
  * Sends today's daily push notification to all stored subscribers.
  * Called automatically by Vercel Cron (see vercel.json).
  *
- * Security: Vercel Cron attaches  Authorization: Bearer <CRON_SECRET>
- * to every request. This endpoint rejects anything without that header.
+ * Vercel Cron attaches  Authorization: Bearer <CRON_SECRET>  to every request.
+ * This endpoint rejects anything without that header.
  *
- * Required environment variables:
- *   CRON_SECRET            — auto-set by Vercel, or add it manually
- *   NEXT_PUBLIC_VAPID_KEY  — your VAPID public key
- *   NEXT_PRIVATE_VAPID_KEY — your VAPID private key
- *   VAPID_SUBJECT          — mailto:you@example.com  (required by spec)
- *   UPSTASH_REDIS_REST_URL
- *   UPSTASH_REDIS_REST_TOKEN
+ * Required environment variables (must be set in Vercel project settings):
+ *   CRON_SECRET
+ *   NEXT_PUBLIC_VAPID_KEY
+ *   NEXT_PRIVATE_VAPID_KEY
+ *   VAPID_SUBJECT
+ *   KV_REST_API_URL   (or UPSTASH_REDIS_REST_URL)
+ *   KV_REST_API_TOKEN (or UPSTASH_REDIS_REST_TOKEN)
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -28,7 +28,7 @@ function initVapid() {
 
   if (!subject || !publicKey || !privateKey) {
     throw new Error(
-      "Missing VAPID config. Set VAPID_SUBJECT, NEXT_PUBLIC_VAPID_KEY, and NEXT_PRIVATE_VAPID_KEY."
+      "Missing VAPID config. Need VAPID_SUBJECT, NEXT_PUBLIC_VAPID_KEY, NEXT_PRIVATE_VAPID_KEY."
     );
   }
 
@@ -36,14 +36,21 @@ function initVapid() {
 }
 
 export async function GET(req: NextRequest) {
-  // Verify the request is from Vercel Cron (or an authorised caller)
+  // --- Auth ---
   const cronSecret = process.env.CRON_SECRET;
   const authHeader = req.headers.get("authorization");
 
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+  if (!cronSecret) {
+    console.error("[notify] CRON_SECRET is not set — request rejected");
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  if (authHeader !== `Bearer ${cronSecret}`) {
+    console.error("[notify] Authorization header mismatch — request rejected");
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  console.log("[notify] Auth passed");
 
+  // --- VAPID ---
   try {
     initVapid();
   } catch (err) {
@@ -51,28 +58,41 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
   }
 
-  // Build today's notification payload
+  // --- Today's content ---
   const entry = getTodayEntry();
   const payload = JSON.stringify({
     title: "Daily Grace",
     body: entry.shortMessage,
   });
+  console.log("[notify] Payload ready, verseRef:", entry.verseReference);
 
-  // Load all subscriptions from Redis
-  const redis = getRedis();
-  const allSubs = await redis.hgetall<Record<string, string>>(SUBSCRIPTIONS_KEY);
+  // --- Load subscriptions ---
+  let allSubs: Record<string, string> | null = null;
+  try {
+    const redis = getRedis();
+    allSubs = await redis.hgetall<Record<string, string>>(SUBSCRIPTIONS_KEY);
+  } catch (err) {
+    console.error("[notify] Redis read failed:", err);
+    return NextResponse.json({ error: "Redis error" }, { status: 500 });
+  }
 
-  if (!allSubs || Object.keys(allSubs).length === 0) {
+  const subCount = allSubs ? Object.keys(allSubs).length : 0;
+  console.log(`[notify] Subscriptions loaded: ${subCount}`);
+
+  if (subCount === 0) {
+    console.log("[notify] No subscriptions — nothing to send");
     return NextResponse.json({ sent: 0, removed: 0 });
   }
 
-  const fields = Object.keys(allSubs);
+  // --- Send ---
+  const fields = Object.keys(allSubs!);
   let sent = 0;
+  let failed = 0;
   const expiredFields: string[] = [];
 
   await Promise.allSettled(
     fields.map(async (field) => {
-      const subscription = JSON.parse(allSubs[field]);
+      const subscription = JSON.parse(allSubs![field]);
 
       try {
         await webpush.sendNotification(subscription, payload);
@@ -80,20 +100,27 @@ export async function GET(req: NextRequest) {
       } catch (err: unknown) {
         const status = (err as { statusCode?: number }).statusCode;
         if (status === 410 || status === 404) {
-          // 410 Gone = user unsubscribed; 404 = endpoint no longer exists
           expiredFields.push(field);
         } else {
-          console.warn("[notify] Push failed for one subscription:", status, err);
+          failed++;
+          console.warn("[notify] Push failed, statusCode:", status);
         }
       }
     })
   );
 
-  // Clean up expired subscriptions
+  // --- Clean up expired ---
   if (expiredFields.length > 0) {
-    await redis.hdel(SUBSCRIPTIONS_KEY, ...expiredFields);
+    try {
+      const redis = getRedis();
+      await redis.hdel(SUBSCRIPTIONS_KEY, ...expiredFields);
+    } catch (err) {
+      console.warn("[notify] Failed to clean expired subscriptions:", err);
+    }
   }
 
-  console.log(`[notify] Sent: ${sent}, Removed: ${expiredFields.length}`);
-  return NextResponse.json({ sent, removed: expiredFields.length });
+  console.log(
+    `[notify] Done — sent: ${sent}, failed: ${failed}, expired/removed: ${expiredFields.length}`
+  );
+  return NextResponse.json({ sent, failed, removed: expiredFields.length });
 }

@@ -99,7 +99,7 @@ self.addEventListener("push", (event) => {
     icon: "/icons/icon-192",
     badge: "/icons/icon-192",
     tag: "daily-grace-reminder", // replaces any existing notification
-    renotify: false,
+    renotify: true,
     data: { url: "/" },
   };
 
