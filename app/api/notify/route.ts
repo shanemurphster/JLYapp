@@ -92,9 +92,9 @@ export async function GET(req: NextRequest) {
 
   await Promise.allSettled(
     fields.map(async (field) => {
-      const subscription = JSON.parse(allSubs![field]);
-
       try {
+        const raw = allSubs![field];
+        const subscription = typeof raw === "string" ? JSON.parse(raw) : raw;
         await webpush.sendNotification(subscription, payload);
         sent++;
       } catch (err: unknown) {
