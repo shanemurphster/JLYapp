@@ -125,8 +125,8 @@ The streak badge appears below the card only when the streak is 2 or more days, 
 | Add to Home Screen | Works — use Safari Share sheet |
 | Full-screen standalone mode | Works on iOS 12+ |
 | Offline support | Works — SW caches pages |
-| Push notifications | iOS 16.4+ **and** installed to Home Screen required |
-| Scheduled notifications (no backend) | Not possible — see below |
+| Push notifications | iOS 16.4+ **and** installed to Home Screen required — working |
+| Scheduled notifications | Working — Vercel Cron + APNs, confirmed May 2026 |
 
 ### iPhone installation steps (for testing)
 
@@ -145,7 +145,7 @@ The streak badge appears below the card only when the streak is 2 or more days, 
 2. Browser requests `Notification` permission
 3. Browser creates a `PushSubscription` (encrypted endpoint tied to this device)
 4. App POSTs the subscription to `POST /api/subscribe` → stored in Upstash Redis
-5. Every day at 8 AM ET, Vercel Cron calls `GET /api/notify`
+5. Every day at 10 AM ET, Vercel Cron calls `GET /api/notify`
 6. `/api/notify` reads all subscriptions from Redis, sends each a Web Push message via `web-push`
 7. The service worker receives the push event, shows the notification
 8. User taps the notification → app opens to today's card
@@ -174,7 +174,7 @@ In your Vercel project → Settings → Environment Variables, add:
 vercel --prod
 ```
 
-Vercel reads `vercel.json` and sets up the cron job automatically. It fires `GET /api/notify` every day at 13:00 UTC (8 AM ET).
+Vercel reads `vercel.json` and sets up the cron job automatically. It fires `GET /api/notify` every day at 14:00 UTC (10 AM ET).
 
 **Changing the notification time**
 
